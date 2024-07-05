@@ -12,7 +12,8 @@ Ce projet est un script Bash interactif utilisant Whiptail pour gérer les utili
 - Système Unix/Linux
 - Bash shell
 - Whiptail installé (`sudo apt-get install whiptail`)
-- OpenSSL (`sudo apt-get install openssl`)
+- HTOP (`sudo apt-get install htop`)
+- IFSTAT (`apt-get install ifstat`)
 - Samba pour gestion des utilisateurs Samba (`sudo apt-get install samba`)
 
 ### Installation
@@ -24,14 +25,24 @@ Ce projet est un script Bash interactif utilisant Whiptail pour gérer les utili
 2. Rendez le script exécutable :
    ```bash
    cd <NOM_DU_REPERTOIRE>
-   chmod +x gestion_utilisateurs.sh
+   chmod +x gestion.sh
+   ```
+
+3. (Optional)
+    ```bash
+   cp gestion.sh /bin/usermgt
    ```
 
 ### Utilisation
 
 Exécutez le script avec les droits d'administrateur :
 ```bash
-sudo ./gestion_utilisateurs.sh
+sudo ./gestion.sh
+```
+
+Vous pouvez également exécuter le script via cette commande si vous avez suivi l'étape 3. (Optional):
+```bash
+usermgt
 ```
 
 ### Fonctionnalités
@@ -66,7 +77,8 @@ This project is an interactive Bash script using Whiptail to manage users and gr
 - Unix/Linux system
 - Bash shell
 - Whiptail installed (`sudo apt-get install whiptail`)
-- OpenSSL (`sudo apt-get install openssl`)
+- HTOP (`sudo apt-get install htop`)
+- IFSTAT (`apt-get install ifstat`)
 - Samba for managing Samba users (`sudo apt-get install samba`)
 
 ### Installation
@@ -78,14 +90,24 @@ This project is an interactive Bash script using Whiptail to manage users and gr
 2. Make the script executable:
    ```bash
    cd <DIRECTORY_NAME>
-   chmod +x gestion_utilisateurs.sh
+   chmod +x gestion.sh
+   ```
+
+3. (Optional)
+    ```bash
+   cp gestion.sh /bin/usermgt
    ```
 
 ### Usage
 
 Run the script with administrator rights:
 ```bash
-sudo ./gestion_utilisateurs.sh
+sudo ./gestion.sh
+```
+
+You can also run the script like this if you followed previos step 3. (Optional):
+```bash
+usermgt
 ```
 
 ### Features
