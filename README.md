@@ -28,7 +28,7 @@ Ce projet est un script Bash interactif utilisant Whiptail pour gérer les utili
    chmod +x gestion.sh
    ```
 
-3. (Optional)
+3. (Optionnel)
     ```bash
    cp gestion.sh /bin/usermgt
    ```
@@ -40,7 +40,7 @@ Exécutez le script avec les droits d'administrateur :
 sudo ./gestion.sh
 ```
 
-Vous pouvez également exécuter le script via cette commande si vous avez suivi l'étape 3. (Optional):
+Vous pouvez également exécuter le script via cette commande si vous avez suivi l'étape 3. (Optionnel):
 ```bash
 usermgt
 ```
