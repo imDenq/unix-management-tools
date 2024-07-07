@@ -6,9 +6,12 @@
 #                               #
 #################################
 
+# Temporary file to store manually added files
+temp_config_file_list="/tmp/config_file_list"
+
 # Fonction pour afficher le menu principal
 show_menu() {
-    choice=$(whiptail --title "Outils de Gestion" --menu "Choisissez une option:" 15 50 9 \
+    choice=$(whiptail --title "Outils de Gestion" --menu "Choisissez une option:" 15 50 10 \
         "1" "Ajouter un utilisateur" \
         "2" "Supprimer un utilisateur" \
         "3" "Lister les utilisateurs" \
@@ -17,7 +20,8 @@ show_menu() {
         "6" "Tableau de bord" \
         "7" "Ajouter un utilisateur Samba" \
         "8" "Monitoring en temps réel" \
-        "9" "Quitter" 3>&1 1>&2 2>&3)
+        "9" "Configurations" \
+        "10" "Quitter" 3>&1 1>&2 2>&3)
     echo $choice
 }
 
@@ -211,6 +215,116 @@ monitoring() {
     htop
 }
 
+# Fonction pour le menu Configurations
+configurations_menu() {
+    choice=$(whiptail --title "Configurations" --menu "Choisissez une catégorie:" 15 50 5 \
+        "1" "Network" \
+        "2" "Security" \
+        "3" "General" \
+        "4" "Kernel" \
+        "5" "Ajouter un nouveau fichier" 3>&1 1>&2 2>&3)
+
+    case $choice in
+        1)
+            edit_config_files "Network" \
+                "/etc/network/interfaces" \
+                "/etc/hosts" \
+                "/etc/resolv.conf" \
+                "/etc/netplan/*.yaml" \
+                "/etc/sysconfig/network" \
+                "/etc/sysconfig/network-scripts/ifcfg-*"
+            ;;
+        2)
+            edit_config_files "Security" \
+                "/etc/ssh/sshd_config" \
+                "/etc/firewalld/firewalld.conf" \
+                "/etc/hosts.allow" \
+                "/etc/hosts.deny" \
+                "/etc/nsswitch.conf" \
+                "/etc/pam.d/common-auth"
+            ;;
+        3)
+            edit_config_files "General" \
+                "/etc/fstab" \
+                "/etc/sysctl.conf" \
+                "/etc/rsyslog.conf" \
+                "/etc/crontab" \
+                "/etc/hostname" \
+                "/etc/issue" \
+                "/etc/motd"
+            ;;
+        4)
+            edit_config_files "Kernel" \
+                "/etc/sysctl.conf" \
+                "/boot/grub/grub.cfg" \
+                "/etc/default/grub" \
+                "/etc/modules" \
+                "/etc/modprobe.d/*.conf" \
+                "/etc/kernel-img.conf"
+            ;;
+        5)
+            add_custom_file
+            ;;
+        *)
+            whiptail --msgbox "Option invalide. Veuillez choisir 1, 2, 3, 4 ou 5." 8 40
+            ;;
+    esac
+}
+
+# Fonction pour ajouter un nouveau fichier personnalisé
+add_custom_file() {
+    category_choice=$(whiptail --title "Ajouter un fichier" --menu "Choisissez une catégorie:" 15 50 4 \
+        "1" "Network" \
+        "2" "Security" \
+        "3" "General" \
+        "4" "Kernel" 3>&1 1>&2 2>&3)
+    
+    new_file=$(whiptail --inputbox "Entrez le chemin complet du fichier à ajouter:" 8 50 3>&1 1>&2 2>&3)
+    
+    if [ -n "$new_file" ]; then
+        echo "$category_choice:$new_file" >> "$temp_config_file_list"
+        whiptail --msgbox "Fichier ajouté avec succès." 8 40
+    else
+        whiptail --msgbox "Aucun fichier ajouté." 8 40
+    fi
+}
+
+# Fonction pour éditer les fichiers de configuration
+edit_config_files() {
+    category=$1
+    shift
+    files=("$@")
+    
+    file_menu_items=()
+    for file in "${files[@]}"; do
+        file_menu_items+=("$file" "$file")
+    done
+
+    # Add custom files if any
+    if [ -f "$temp_config_file_list" ]; then
+        while IFS= read -r line; do
+            cat_choice=$(echo "$line" | cut -d: -f1)
+            cat_file=$(echo "$line" | cut -d: -f2-)
+            if [ "$cat_choice" == "$category" ]; then
+                file_menu_items+=("$cat_file" "$cat_file")
+            fi
+        done < "$temp_config_file_list"
+    fi
+
+    while true; do
+        config_file=$(whiptail --title "Configuration $category" --menu "Choisissez un fichier à éditer:" 15 50 8 "${file_menu_items[@]}" 3>&1 1>&2 2>&3)
+        
+        if [ -n "$config_file" ]; then
+            sudo nano "$config_file"
+        else
+            break
+        fi
+    done
+}
+
+# Initialisation du fichier temporaire
+> "$temp_config_file_list"
+
 # Boucle principale du menu
 while true; do
     choice=$(show_menu)
@@ -240,6 +354,9 @@ while true; do
             monitoring
             ;;
         9)
+            configurations_menu
+            ;;
+        10)
             whiptail --msgbox "Voulez-vous quitter le programme ?" 8 40
             clear
             exit 0
