@@ -55,6 +55,7 @@ usermgt
 - **Tableau de bord** : Affiche un tableau de bord avec des statistiques sur les utilisateurs.
 - **Ajouter un utilisateur Samba** : Ajoute un utilisateur Samba existant.
 - **Monitoring en temps réel** : Ouvre l'outil `htop` pour le monitoring du système.
+- **Configurations Système**: Permet de modifier les certains fichiers de configuration directement depuis l'interface.
 
 ### Avertissements
 
@@ -120,6 +121,7 @@ usermgt
 - **Dashboard**: Shows a dashboard with statistics on users.
 - **Add a Samba user**: Adds an existing Samba user.
 - **Real-time monitoring**: Opens `htop` for system monitoring.
+- **Configuration editor**: Permit the user to modify certain system configurations files.
 
 ### Warnings
 
