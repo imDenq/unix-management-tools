@@ -1,52 +1,91 @@
 #!/bin/bash
 
-#################################
-#                               #
-#  All rights reserved, DenqLLC #
-#                               #
-#################################
+##################################
+#                                #
+#  All rights reserved, DenqLLC  #
+#                                #
+##################################
 
 # Temporary file to store manually added files
 temp_config_file_list="/tmp/config_file_list"
 
 # Fonction pour afficher le menu principal
 show_menu() {
-    choice=$(whiptail --title "Outils de Gestion" --menu "Choisissez une option:" 15 50 10 \
+    choice=$(whiptail --title "Outils de Gestion" --menu "Choisissez une option:" 15 50 9 \
         "1" "Ajouter un utilisateur" \
         "2" "Supprimer un utilisateur" \
         "3" "Lister les utilisateurs" \
         "4" "Modifier un utilisateur" \
         "5" "Lister les groupes" \
         "6" "Tableau de bord" \
-        "7" "Ajouter un utilisateur Samba" \
-        "8" "Monitoring en temps réel" \
-        "9" "Configurations" \
-        "10" "Quitter" 3>&1 1>&2 2>&3)
+        "7" "Monitoring en temps réel" \
+        "8" "Configurations" \
+        "9" "Quitter" 3>&1 1>&2 2>&3)
     echo $choice
 }
 
-# Fonction pour ajouter un utilisateur avec mot de passe
+# Fonction pour ajouter un utilisateur avec sous-menu
 add_user() {
-    username=$(whiptail --inputbox "Entrez le nom d'utilisateur:" 8 40 3>&1 1>&2 2>&3)
+    add_user_choice=$(whiptail --title "Ajouter un utilisateur" --menu "Choisissez une option:" 15 50 2 \
+        "1" "Ajouter un utilisateur standard" \
+        "2" "Ajouter un utilisateur Samba" 3>&1 1>&2 2>&3)
     
-    if id "$username" &>/dev/null; then
-        whiptail --msgbox "Erreur: L'utilisateur '$username' existe déjà." 8 40
+    case $add_user_choice in
+        1)
+            username=$(whiptail --inputbox "Entrez le nom d'utilisateur:" 8 40 3>&1 1>&2 2>&3)
+    
+            if id "$username" &>/dev/null; then
+                whiptail --msgbox "Erreur: L'utilisateur '$username' existe déjà." 8 40
+            else
+                password=$(whiptail --passwordbox "Entrez le mot de passe pour l'utilisateur:" 8 40 3>&1 1>&2 2>&3)
+                password2=$(whiptail --passwordbox "Confirmez le mot de passe:" 8 40 3>&1 1>&2 2>&3)
+
+                if [ "$password" != "$password2" ]; then
+                    whiptail --msgbox "Les mots de passe ne correspondent pas. Veuillez réessayer." 8 40
+                    return
+                fi
+
+                encrypted_password=$(openssl passwd -1 "$password")
+                sudo useradd -m -p "$encrypted_password" -s /bin/bash "$username"
+                if [ $? -eq 0 ]; then
+                    whiptail --msgbox "Utilisateur '$username' ajouté avec succès." 8 40
+                else
+                    whiptail --msgbox "Erreur lors de l'ajout de l'utilisateur '$username'." 8 40
+                fi
+            fi
+            ;;
+        2)
+            add_samba_user
+            ;;
+        *)
+            whiptail --msgbox "Option invalide. Veuillez choisir 1 ou 2." 8 40
+            ;;
+    esac
+}
+
+# Fonction pour ajouter un utilisateur Samba
+add_samba_user() {
+    users=$(awk -F: '$3 >= 1000 { print $1 }' /etc/passwd | xargs -I{} echo "{}" "{}")
+    username=$(whiptail --title "Ajouter un utilisateur Samba" --menu "Choisissez un utilisateur existant:" 15 50 8 $(echo $users) 3>&1 1>&2 2>&3)
+
+    if [ -z "$username" ]; then
+        whiptail --msgbox "Aucun utilisateur sélectionné." 8 40
+        return
+    fi
+
+    password=$(whiptail --passwordbox "Entrez le mot de passe pour l'utilisateur Samba:" 8 40 3>&1 1>&2 2>&3)
+    password2=$(whiptail --passwordbox "Confirmez le mot de passe:" 8 40 3>&1 1>&2 2>&3)
+
+    if [ "$password" != "$password2" ]; then
+        whiptail --msgbox "Les mots de passe ne correspondent pas. Veuillez réessayer." 8 40
+        return
+    fi
+
+    (echo "$password"; echo "$password") | sudo smbpasswd -a "$username"
+    if [ $? -eq 0 ]; then
+        whiptail --msgbox "Utilisateur Samba '$username' ajouté avec succès." 8 40
     else
-        password=$(whiptail --passwordbox "Entrez le mot de passe pour l'utilisateur:" 8 40 3>&1 1>&2 2>&3)
-        password2=$(whiptail --passwordbox "Confirmez le mot de passe:" 8 40 3>&1 1>&2 2>&3)
-
-        if [ "$password" != "$password2" ]; then
-            whiptail --msgbox "Les mots de passe ne correspondent pas. Veuillez réessayer." 8 40
-            return
-        fi
-
-        encrypted_password=$(openssl passwd -1 "$password")
-        sudo useradd -m -p "$encrypted_password" -s /bin/bash "$username"
-        if [ $? -eq 0 ]; then
-            whiptail --msgbox "Utilisateur '$username' ajouté avec succès." 8 40
-        else
-            whiptail --msgbox "Erreur lors de l'ajout de l'utilisateur '$username'." 8 40
-        fi
+        whiptail --msgbox "Erreur lors de l'ajout de l'utilisateur Samba '$username'." 8 40
     fi
 }
 
@@ -176,32 +215,6 @@ dashboard() {
     app_users=$(awk -F: '$3 < 1000 {print $1}' /etc/passwd | wc -l)
     info="Nombre total d'utilisateurs: $total_users\n\nUtilisateurs humains: $human_users\n\nUtilisateurs applicatifs: $app_users"
     whiptail --msgbox "$info" 15 50
-}
-
-# Fonction pour ajouter un utilisateur Samba
-add_samba_user() {
-    users=$(awk -F: '$3 >= 1000 { print $1 }' /etc/passwd | xargs -I{} echo "{}" "{}")
-    username=$(whiptail --title "Ajouter un utilisateur Samba" --menu "Choisissez un utilisateur existant:" 15 50 8 $(echo $users) 3>&1 1>&2 2>&3)
-
-    if [ -z "$username" ]; then
-        whiptail --msgbox "Aucun utilisateur sélectionné." 8 40
-        return
-    fi
-
-    password=$(whiptail --passwordbox "Entrez le mot de passe pour l'utilisateur Samba:" 8 40 3>&1 1>&2 2>&3)
-    password2=$(whiptail --passwordbox "Confirmez le mot de passe:" 8 40 3>&1 1>&2 2>&3)
-
-    if [ "$password" != "$password2" ]; then
-        whiptail --msgbox "Les mots de passe ne correspondent pas. Veuillez réessayer." 8 40
-        return
-    fi
-
-    (echo "$password"; echo "$password") | sudo smbpasswd -a "$username"
-    if [ $? -eq 0 ]; then
-        whiptail --msgbox "Utilisateur Samba '$username' ajouté avec succès." 8 40
-    else
-        whiptail --msgbox "Erreur lors de l'ajout de l'utilisateur Samba '$username'." 8 40
-    fi
 }
 
 # Fonction pour gérer les exceptions
@@ -348,15 +361,12 @@ while true; do
             dashboard
             ;;
         7)
-            add_samba_user
-            ;;
-        8)
             monitoring
             ;;
-        9)
+        8)
             configurations_menu
             ;;
-        10)
+        9)
             whiptail --msgbox "Voulez-vous quitter le programme ?" 8 40
             clear
             exit 0
