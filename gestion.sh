@@ -11,7 +11,7 @@ temp_config_file_list="/tmp/config_file_list"
 
 # Fonction pour afficher le menu principal
 show_menu() {
-    choice=$(whiptail --title "Outils de Gestion" --menu "Choisissez une option:" 15 50 9 \
+    choice=$(whiptail --title "Outils de Gestion" --menu "Choisissez une option:" 15 50 10 \
         "1" "Ajouter un utilisateur" \
         "2" "Supprimer un utilisateur" \
         "3" "Lister les utilisateurs" \
@@ -20,7 +20,8 @@ show_menu() {
         "6" "Tableau de bord" \
         "7" "Monitoring en temps réel" \
         "8" "Configurations" \
-        "9" "Quitter" 3>&1 1>&2 2>&3)
+        "9" "Gérer les hôtes Nagios" \
+        "10" "Quitter" 3>&1 1>&2 2>&3)
     echo $choice
 }
 
@@ -81,11 +82,20 @@ add_samba_user() {
         return
     fi
 
-    (echo "$password"; echo "$password") | sudo smbpasswd -a "$username"
+    # Check if user exists in the system
+    if ! id "$username" &>/dev/null; then
+        whiptail --msgbox "Erreur: L'utilisateur '$username' n'existe pas dans le système. Veuillez d'abord créer l'utilisateur standard." 8 40
+        return
+    fi
+
+    # Add Samba user with debugging output
+    echo "Ajout de l'utilisateur Samba '$username' avec le mot de passe spécifié..."
+    echo -e "$password\n$password" | sudo smbpasswd -a "$username" 2>/tmp/samba_add_error.log
     if [ $? -eq 0 ]; then
         whiptail --msgbox "Utilisateur Samba '$username' ajouté avec succès." 8 40
     else
-        whiptail --msgbox "Erreur lors de l'ajout de l'utilisateur Samba '$username'." 8 40
+        error_message=$(cat /tmp/samba_add_error.log)
+        whiptail --msgbox "Erreur lors de l'ajout de l'utilisateur Samba '$username'. Détails: $error_message" 8 80
     fi
 }
 
@@ -264,7 +274,8 @@ configurations_menu() {
                 "/etc/crontab" \
                 "/etc/hostname" \
                 "/etc/issue" \
-                "/etc/motd"
+                "/etc/motd" \
+                "/etc/passwd"
             ;;
         4)
             edit_config_files "Kernel" \
@@ -335,6 +346,43 @@ edit_config_files() {
     done
 }
 
+# Fonction pour gérer les hôtes Nagios
+manage_nagios_hosts() {
+    NAGIOS_HOSTS_FILE="/usr/local/nagios/etc/objects/hosts.cfg"
+
+    HOST_NAME=$(whiptail --inputbox "Entrez le nom de l'hôte :" 8 40 3>&1 1>&2 2>&3)
+    HOST_ADDRESS=$(whiptail --inputbox "Entrez l'adresse IP :" 8 40 3>&1 1>&2 2>&3)
+    HOST_ALIAS=$(whiptail --inputbox "Entrez un alias :" 8 40 3>&1 1>&2 2>&3)
+
+    if [ -z "$HOST_NAME" ] || [ -z "$HOST_ADDRESS" ] || [ -z "$HOST_ALIAS" ]; then
+        whiptail --msgbox "Tous les champs sont obligatoires. Veuillez réessayer." 8 40
+        return
+    fi
+
+    HOST_CONFIG="
+define host {
+    host_name              $HOST_NAME
+    alias                  $HOST_ALIAS
+    address                $HOST_ADDRESS
+    max_check_attempts     3
+    check_period           24x7
+    check_command          check-host-alive
+    contacts               nagiosadmin
+    notification_interval  60
+    notification_period    24x7
+}
+"
+
+    echo "$HOST_CONFIG" | sudo tee -a $NAGIOS_HOSTS_FILE > /dev/null
+    sudo systemctl restart nagios
+
+    if [ $? -eq 0 ]; then
+        whiptail --msgbox "Hôte Nagios '$HOST_NAME' ajouté avec succès et Nagios redémarré." 8 40
+    else
+        whiptail --msgbox "Erreur lors de l'ajout de l'hôte Nagios '$HOST_NAME'." 8 40
+    fi
+}
+
 # Initialisation du fichier temporaire
 > "$temp_config_file_list"
 
@@ -367,6 +415,9 @@ while true; do
             configurations_menu
             ;;
         9)
+            manage_nagios_hosts
+            ;;
+        10)
             whiptail --msgbox "Voulez-vous quitter le programme ?" 8 40
             clear
             exit 0
